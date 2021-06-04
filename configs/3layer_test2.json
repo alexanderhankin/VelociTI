@@ -1,0 +1,21 @@
+{"circuit": 
+{"1-qubit gate latency [ns]": 1000, 
+"2-qubit gate latency inside chain [ns]": 100000, 
+"penalty for 2-qubit gate between chains": 2,
+"circuit depth": 3, 
+"layer1": 
+{
+"1-qubit gates": 15, 
+"2-qubit gates": 20
+},
+"layer2":
+{
+"1-qubit gates": 33, 
+"2-qubit gates": 10 
+},
+"layer3":
+{
+"1-qubit gates": 4, 
+"2-qubit gates": 6 
+}
+}}

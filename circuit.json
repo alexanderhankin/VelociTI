@@ -1,0 +1,8 @@
+{"circuit": {
+  "circuit depth": "3",
+  "1-qubit gates": "70",
+  "2-qubit gates": "30",
+  "1-qubit gate latency [ns]": "5",
+  "2-qubit gate latency inside chain [ns]": "10",
+  "penalty for 2-qubit gate between chains": "2"}
+}
