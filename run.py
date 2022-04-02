@@ -58,9 +58,9 @@ def sum_to_n(n, size, limit=None):
 
 def gen_random_circuit():
     
-    chain_size = 8 
+    chain_size = 8
     print("Chain size: ", chain_size)
-    num_qubits = random.randint(5,50)
+    num_qubits = random.randint(5, 50)
     print("Num qubits: ", num_qubits)
     num_2q_gates = random.randint(0, num_qubits)
     #num_1q_gates = random.randint(0, num_qubits)
@@ -198,7 +198,7 @@ def get_placement_possibilities(qubit_list, num_chains, num_qubits, G):
 
 def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list):
 
-    num_chains = math.ceil(float(num_qubits)/float(chain_size))
+    num_chains = math.ceil(float(num_qubits)/float(chain_size)) #BUG if num_qubits <= chain_size. Evaluates to 1 (we don't want that in the denominator later)
     
     print("Num chains: ", num_chains)
     print()
