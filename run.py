@@ -6,7 +6,7 @@ import json
 import math
 
 
-COLORS = ['blue', 'red', 'green', 'yellow', 'orange', 'mintcream', 'purple', 'cyan', 'brown']
+COLORS = ['lightsteelblue', 'red', 'lime', 'yellow', 'orange', 'navajowhite', 'plum', 'cyan', 'brown']
 
 def load_config(config_file_path):
 
@@ -99,8 +99,8 @@ def draw_graph(G, indices):
         for j in range(count):
             color_map.append(COLORS[i])
 
-    pos=nx.random_layout(G)
-    # nx.draw(G, pos, with_labels = True)
+    # pos=nx.random_layout(G)
+    pos=nx.circular_layout(G)
     nx.draw(G, pos, node_color=color_map, with_labels = True)
     labels = nx.get_edge_attributes(G,'weight')
     nx.draw_networkx_edge_labels(G,pos,edge_labels=labels)
