@@ -6,6 +6,8 @@ import json
 import math
 
 
+COLORS = ['lightsteelblue', 'red', 'lime', 'yellow', 'orange', 'navajowhite', 'plum', 'cyan', 'brown']
+
 def load_config(config_file_path):
 
     # sample config
@@ -56,9 +58,9 @@ def sum_to_n(n, size, limit=None):
 
 def gen_random_circuit():
     
-    chain_size = 8 
+    chain_size = 8
     print("Chain size: ", chain_size)
-    num_qubits = random.randint(5,50)
+    num_qubits = random.randint(5, 50)
     print("Num qubits: ", num_qubits)
     num_2q_gates = random.randint(0, num_qubits)
     #num_1q_gates = random.randint(0, num_qubits)
@@ -74,13 +76,10 @@ def gen_random_circuit():
 def place_gates(num_2q_gates, qubit_list, G):
 
     for gate in range(num_2q_gates):
-        q1_id = random.randint(0,max(qubit_list))
-        q2_id = random.randint(0,max(qubit_list))
-        
-        while (q1_id == q2_id):
-            q1_id = random.randint(0,max(qubit_list))
-            q2_id = random.randint(0,max(qubit_list))
-        
+        q_id = random.sample(range(0, max(qubit_list)), 2)  # sample 2 distinct qubits
+        q1_id = q_id[0]
+        q2_id = q_id[1]
+
         if (G.has_edge('q{}'.format(q1_id), 'q{}'.format(q2_id))): # edge already exists; update edge weight
             G['q{}'.format(q1_id)]['q{}'.format(q2_id)]['weight'] = G['q{}'.format(q1_id)]['q{}'.format(q2_id)]['weight'] + 1
         else: #no edge; add edge
@@ -88,10 +87,21 @@ def place_gates(num_2q_gates, qubit_list, G):
     return G
 
 
-def draw_graph(G):
+def draw_graph(G, indices):
 
-    pos=nx.random_layout(G)
-    nx.draw(G, pos, with_labels = True)
+    color_map = []
+    colorIndex = -1
+    index = 0
+    indices.insert(0, 0)
+    indices.append(G.number_of_nodes())
+    for i in range(len(indices) - 1):
+        count = indices[i+1] - indices[i]
+        for j in range(count):
+            color_map.append(COLORS[i])
+
+    # pos=nx.random_layout(G)
+    pos=nx.circular_layout(G)
+    nx.draw(G, pos, node_color=color_map, with_labels = True)
     labels = nx.get_edge_attributes(G,'weight')
     nx.draw_networkx_edge_labels(G,pos,edge_labels=labels)
     plt.axis('off')
@@ -183,12 +193,12 @@ def get_placement_possibilities(qubit_list, num_chains, num_qubits, G):
     # compute number of weak links (cut sizes between chains)
     cut_sizes = compute_num_weak_links(num_chains, G, prepped_subgroups)
 
-    return cut_sizes
+    return cut_sizes, indices
 
 
 def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list):
 
-    num_chains = math.ceil(float(num_qubits)/float(chain_size))
+    num_chains = math.ceil(float(num_qubits)/float(chain_size)) #BUG if num_qubits <= chain_size. Evaluates to 1 (we don't want that in the denominator later)
     
     print("Num chains: ", num_chains)
     print()
@@ -196,13 +206,13 @@ def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list):
     random.shuffle(qubit_list)
     
     print("PLACEMENT ATTEMPT")
-    cut_sizes = get_placement_possibilities(qubit_list, num_chains, num_qubits, G)
+    cut_sizes, indices = get_placement_possibilities(qubit_list, num_chains, num_qubits, G)
     
     while not all(i <= 2 for i in cut_sizes):
         print("PLACEMENT ATTEMPT")
-        cut_sizes = get_placement_possibilities(qubit_list, num_chains, num_qubits, G)
+        cut_sizes, indices = get_placement_possibilities(qubit_list, num_chains, num_qubits, G)
 
-    return cut_sizes
+    return cut_sizes, indices
 
 
 def main():
@@ -225,14 +235,14 @@ def main():
     G = place_gates(num_2q_gates, qubit_list, G)
     
     print("Edges: ", G.edges())
-    
-    # draw graph for visualization purposes
-    draw_graph(G)
-    
-    #Place qubits into chains
+
+   #Place qubits into chains
     # number of sequences is equal to number of chains
     # break qubit list into X random groups where X is equal to number of chains
-    cut_sizes = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list) 
+    cut_sizes, indices = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list)
+
+    # draw graph for visualization purposes
+    draw_graph(G, indices)
 
     print("RESULTS")
     print("Cut sizes: ", cut_sizes)
