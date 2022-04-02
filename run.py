@@ -74,13 +74,10 @@ def gen_random_circuit():
 def place_gates(num_2q_gates, qubit_list, G):
 
     for gate in range(num_2q_gates):
-        q1_id = random.randint(0,max(qubit_list))
-        q2_id = random.randint(0,max(qubit_list))
-        
-        while (q1_id == q2_id):
-            q1_id = random.randint(0,max(qubit_list))
-            q2_id = random.randint(0,max(qubit_list))
-        
+        q_id = random.sample(range(0, max(qubit_list)), 2)  # sample 2 distinct qubits
+        q1_id = q_id[0]
+        q2_id = q_id[1]
+
         if (G.has_edge('q{}'.format(q1_id), 'q{}'.format(q2_id))): # edge already exists; update edge weight
             G['q{}'.format(q1_id)]['q{}'.format(q2_id)]['weight'] = G['q{}'.format(q1_id)]['q{}'.format(q2_id)]['weight'] + 1
         else: #no edge; add edge
