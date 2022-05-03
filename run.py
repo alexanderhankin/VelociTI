@@ -61,11 +61,11 @@ def gen_random_circuit():
     
     chain_size = 4
     print("Chain size: ", chain_size)
-    num_qubits = random.randint(3, 16)
+    num_qubits = random.randint(3, 8)
     print("Num qubits: ", num_qubits)
-    num_2q_gates = random.randint(num_qubits, num_qubits + 5)
+    num_2q_gates = random.randint(num_qubits, num_qubits + 3)
     print("Num 2-qubit gates: ", num_2q_gates)
-    num_1q_gates = random.randint(0, num_qubits + 10)
+    num_1q_gates = random.randint(0, num_qubits)
     print("Num 1-qubit gates: ", num_1q_gates)
     qubit_list = list(range(num_qubits))
     print("Qubit list: ", qubit_list)
@@ -252,6 +252,433 @@ def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list):
     return prepped_subgroups, cut_sizes, indices
 
 
+def build_operation_graph(operation_list):
+    
+    operation_dict = {}
+
+    DG = nx.DiGraph()
+
+    is_2q_gate = False
+    start_nodes = []
+   
+    for index, operation in enumerate(operation_list):
+        print()
+        print("OPERATION {}".format(index))
+        print("Operation dict: ", operation_dict)
+
+        # check if 1q or 2q gate and separate qubit IDs
+        if len(operation) == 2:
+            is_2q_gate = True
+            q1 = operation[0]
+            q2 = operation[1]
+            current_operation = "{}{}".format(q1, q2)
+            current_operation_swapped = "{}{}".format(q2, q1)
+        else:
+            is_2q_gate = False
+            q1 = operation[0]
+            current_operation = "{}".format(q1)
+
+        print("Current_operation: ", current_operation)
+        ## make node
+        # check if node exists 
+        if is_2q_gate:
+            if current_operation in operation_dict:
+               # node already exists, make a new node with counter appended, e.g., q1q2_2
+               num_previous_occurences = operation_dict[current_operation]
+               current_node_id = "{}_{}".format(current_operation, num_previous_occurences+1)
+               DG.add_node(current_node_id)
+               operation_dict[current_operation] = operation_dict[current_operation] + 1
+               operation_list[index].append(operation_dict[current_operation])
+            
+            elif current_operation_swapped in operation_dict:
+               operation_list[index] = [q2, q1] 
+               current_operation = current_operation_swapped
+               # node already exists, make a new node with counter appended, e.g., q1q2_2
+               num_previous_occurences = operation_dict[current_operation]
+               current_node_id = "{}_{}".format(current_operation, num_previous_occurences+1)
+               DG.add_node(current_node_id)
+               operation_dict[current_operation] = operation_dict[current_operation] + 1
+               operation_list[index].append(operation_dict[current_operation])
+
+            else: # node doesn't exist, make new one
+               current_node_id = current_operation 
+               DG.add_node(current_node_id)
+               operation_dict[current_operation] = 1
+
+        else:
+            if current_operation in operation_dict:
+               # node already exists, make a new node with counter appended, e.g., q1q2_2
+               num_previous_occurences = operation_dict[current_operation]
+               current_node_id = "{}_{}".format(current_operation, num_previous_occurences+1)
+               DG.add_node(current_node_id)
+               operation_dict[current_operation] = operation_dict[current_operation] + 1
+               operation_list[index].append(operation_dict[current_operation])
+
+            else: # node doesn't exist, make new one
+               current_node_id = current_operation 
+               DG.add_node(current_node_id)
+               operation_dict[current_operation] = 1
+           
+        print("Current_node_id: ", current_node_id)
+        print("Operation list: ", operation_list)
+
+        ## check if edge should be added
+        previous_node_id = ""
+        first_operand_linked = False
+        second_operand_linked = False
+
+        for history_index in reversed(range(index)):
+            print("GOING THROUGH HISTORY")
+            print("history_index: ", history_index)   
+            previous_operation = operation_list[history_index] # either ["q1", "q2"] or ["q3"] for example
+            print("Previous_operation: ", previous_operation)
+            
+            ## check for operand matching
+            # current gate is 2q gate
+            if is_2q_gate:
+                
+                # previous operation under scrutiny is 2q gate
+                if len(previous_operation) >= 2 and "q" in str(previous_operation[1]):
+                   
+                    if not first_operand_linked and not second_operand_linked:
+                        if (q1 == previous_operation[0] or q1 == previous_operation[1]) and (q2 == previous_operation[0] or q2 == previous_operation[1]):
+
+                            first_operand_linked = True
+                            second_operand_linked = True
+
+                            # obtain node id for previous operation and exit loop
+                            if len(previous_operation) == 3:
+                                num_previous_occurences_of_previous_operation = previous_operation[2]
+                                previous_node_id = "{}{}_{}".format(previous_operation[0], previous_operation[1], num_previous_occurences_of_previous_operation)
+                            else:
+                                previous_node_id = "{}{}".format(previous_operation[0], previous_operation[1])
+                            
+                            ## add edge
+                            weak_link = False # TODO: check for weak link
+                            
+                            print("Previous_node_id: ", previous_node_id)
+                            if is_2q_gate:
+                                if weak_link:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                else:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
+                            else:
+                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+
+                    
+                    if not first_operand_linked:
+                        if q1 == previous_operation[0] or q1 == previous_operation[1]:
+
+                            first_operand_linked = True
+
+                            # obtain node id for previous operation and exit loop
+                            if len(previous_operation) == 3:
+                                num_previous_occurences_of_previous_operation = previous_operation[2]
+                                previous_node_id = "{}{}_{}".format(previous_operation[0], previous_operation[1], num_previous_occurences_of_previous_operation)
+                            else:
+                                previous_node_id = "{}{}".format(previous_operation[0], previous_operation[1])
+                            
+                            ## add edge
+                            weak_link = False # TODO: check for weak link
+                            
+                            print("Previous_node_id: ", previous_node_id)
+                            if is_2q_gate:
+                                if weak_link:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                else:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
+                            else:
+                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+
+                    if not second_operand_linked:
+                        if q2 == previous_operation[0] or q2 == previous_operation[1]:
+
+                            second_operand_linked = True
+
+                            # obtain node id for previous operation and exit loop
+                            if len(previous_operation) == 3:
+                                num_previous_occurences_of_previous_operation = previous_operation[2]
+                                previous_node_id = "{}{}_{}".format(previous_operation[0], previous_operation[1], num_previous_occurences_of_previous_operation)
+                            else:
+                                previous_node_id = "{}{}".format(previous_operation[0], previous_operation[1])
+                            
+                            ## add edge
+                            weak_link = False # TODO: check for weak link
+                            
+                            print("Previous_node_id: ", previous_node_id)
+                            if is_2q_gate:
+                                if weak_link:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                else:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
+                            else:
+                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+                
+                # previous operation under scrutiny is 1q gate
+                else: 
+
+                    if not first_operand_linked:
+                        if q1 == previous_operation[0]:
+
+                            first_operand_linked = True
+
+                            # obtain node id for previous operation and exit loop
+                            if len(previous_operation) == 2:
+                                num_previous_occurences_of_previous_operation = previous_operation[1]
+                                previous_node_id = "{}_{}".format(previous_operation[0], num_previous_occurences_of_previous_operation)
+                            else:
+                                previous_node_id = "{}".format(previous_operation[0])
+                
+                            ## add edge
+                            weak_link = False # TODO: check for weak link
+                            
+                            print("Previous_node_id: ", previous_node_id)
+                            if is_2q_gate:
+                                if weak_link:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                else:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
+                            else:
+                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+                    
+                    if not second_operand_linked:
+                        if q2 == previous_operation[0]:
+
+                            second_operand_linked = True
+
+                            # obtain node id for previous operation and exit loop
+                            if len(previous_operation) == 2:
+                                num_previous_occurences_of_previous_operation = previous_operation[1]
+                                previous_node_id = "{}_{}".format(previous_operation[0], num_previous_occurences_of_previous_operation)
+                            else:
+                                previous_node_id = "{}".format(previous_operation[0])
+                
+                            ## add edge
+                            weak_link = False # TODO: check for weak link
+                            
+                            print("Previous_node_id: ", previous_node_id)
+                            if is_2q_gate:
+                                if weak_link:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                else:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
+                            else:
+                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+
+            # current gate is 1q gate
+            else: 
+                
+                # previous operation under scrutiny is 2q gate
+                if len(previous_operation) >= 2 and "q" in str(previous_operation[1]):
+
+                    if not first_operand_linked:
+                        if q1 == previous_operation[0] or q1 == previous_operation[1]:
+
+                            first_operand_linked = True
+
+                            # obtain node id for previous operation and exit loop
+                            if len(previous_operation) == 3:
+                                num_previous_occurences_of_previous_operation = previous_operation[2]
+                                previous_node_id = "{}{}_{}".format(previous_operation[0], previous_operation[1], num_previous_occurences_of_previous_operation)
+                            else:
+                                previous_node_id = "{}{}".format(previous_operation[0], previous_operation[1])
+                            
+                            ## add edge
+                            weak_link = False # TODO: check for weak link
+                            
+                            print("Previous_node_id: ", previous_node_id)
+                            if is_2q_gate:
+                                if weak_link:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                else:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
+                            else:
+                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+
+                # previous operation under scrutiny is 1q gate
+                else: 
+                    if not first_operand_linked:
+                        if q1 == previous_operation[0]:
+
+                            first_operand_linked = True
+
+                            # obtain node id for previous operation and exit loop
+                            if len(previous_operation) == 2:
+                                num_previous_occurences_of_previous_operation = previous_operation[1]
+                                previous_node_id = "{}_{}".format(previous_operation[0], num_previous_occurences_of_previous_operation)
+                            else:
+                                previous_node_id = "{}".format(previous_operation[0])
+                            
+                            ## add edge
+                            weak_link = False # TODO: check for weak link
+                            
+                            print("Previous_node_id: ", previous_node_id)
+                            if is_2q_gate:
+                                if weak_link:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                else:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if weak_link:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
+                            else:
+                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+                                
+
+
+            ## exit loop if all operand(s) have been linked to previous nodes
+            if is_2q_gate:
+                if first_operand_linked and second_operand_linked:
+                    break
+
+            else:
+                if first_operand_linked:
+                    break
+
+        # It's a start node
+        if previous_node_id == "":
+            start_nodes.append(current_node_id)
+
+    return DG
+
+
 def main():
  
     if (sys.argv[1] == 'random'):# generate random circuit
@@ -294,12 +721,16 @@ def main():
     
     print("Serial performance [us]: ", serial_t)
 
-    print("Operation list: ", operation_list)
     random.shuffle(operation_list) # randomize order of operations
     print("Operation list: ", operation_list)
     
-    #parallel_t = new_algorithm(operation_list)
-    #print("Parallel performance [us]: ", parallel_t)
+    DG = build_operation_graph(operation_list)
+    subax1 = plt.subplot(111)
+    nx.draw(DG, with_labels=True, font_weight='bold')
+    parallel_t = nx.dag_longest_path_length(DG)
+    print("Longest path: ", nx.dag_longest_path(DG))
+    print("Parallel performance [us]: ", parallel_t)
+    plt.show()  
 
 
 if __name__ == "__main__":
