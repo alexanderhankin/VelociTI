@@ -9,7 +9,7 @@ import pickle
 
 COLORS = ['lightsteelblue', 'red', 'lime', 'yellow', 'orange', 'navajowhite', 'plum', 'cyan', 'brown']
 
-def load_config(config_file_path):
+def load_config_simple(config_file_path):
 
     # sample config
     #{   'circuit': {   '1-qubit gate latency [ns]': '5',
@@ -27,7 +27,6 @@ def load_config(config_file_path):
     d = int(config["circuit"]["circuit depth"])
     delta = float(config["circuit"]["1-qubit gate latency [ns]"])
     gamma = float(config["circuit"]["2-qubit gate latency inside chain [ns]"])
-    alpha = float(config["circuit"]["penalty for 2-qubit gate between chains"])
 
     if d == 1:
         q = int(config["circuit"]["1-qubit gates"])
@@ -40,6 +39,36 @@ def load_config(config_file_path):
             p.append(float(config["circuit"]["layer{}".format(layer+1)]["2-qubit gates"]))
 
     return d, q, p, alpha, delta, gamma
+
+def load_config(config_file_path):
+
+    # sample config
+    #{   'circuit': {   '1-qubit gate latency [ns]': '5',
+    #                   '1-qubit gates': '70',
+    #                   '2-qubit gate latency inside chain [ns]': '10',
+    #                   '2-qubit gates': '30',
+    #                   'circuit depth': '3',
+    #                   'penalty for 2-qubit gate between chains': '2'}}
+    
+    with open (config_file_path) as config_file:
+        config = json.load(config_file)
+    
+    #pp.pprint(config)
+    
+    delta = float(config["circuit"]["1-qubit gate latency [ns]"])
+    gamma = float(config["circuit"]["2-qubit gate latency inside chain [ns]"])
+    alpha = float(config["circuit"]["penalty for 2-qubit gate between chains"])
+    qubits_per_chain = int(config["circuit"]["qubits per chain"])
+    num_qubits = int(config["circuit"]["num qubits"])
+    num_chains = int(config["circuit"]["num chains"])
+    q = int(config["circuit"]["num 1q gates"])
+    p = int(config["circuit"]["num 2q gates"])
+    qubit_placement = config["circuit"]["qubit placement dict"]
+    cut_sizes = config["circuit"]["cut sizes"]
+    indices = config["circuit"]["indices"]
+    operation_list = config["circuit"]["operation list"]
+
+    return q, p, alpha, delta, gamma, qubits_per_chain, num_qubits, num_chains, qubit_placement, cut_sizes, indices, operation_list
 
 
 def sum_to_n(n, size, limit=None):
@@ -61,11 +90,11 @@ def gen_random_circuit():
     
     chain_size = 4
     print("Chain size: ", chain_size)
-    num_qubits = random.randint(3, 8)
+    num_qubits = random.randint(3, 16)
     print("Num qubits: ", num_qubits)
-    num_2q_gates = random.randint(num_qubits, num_qubits + 3)
+    num_2q_gates = random.randint(num_qubits, num_qubits + 15)
     print("Num 2-qubit gates: ", num_2q_gates)
-    num_1q_gates = random.randint(0, num_qubits)
+    num_1q_gates = random.randint(0, num_qubits + 10)
     print("Num 1-qubit gates: ", num_1q_gates)
     qubit_list = list(range(num_qubits))
     print("Qubit list: ", qubit_list)
@@ -117,7 +146,7 @@ def place_gates(num_1q_gates, num_2q_gates, qubit_list, G):
     return G, operation_list
 
 
-def draw_graph(G, indices):
+def draw_graph(G, indices, filename):
 
     color_map = []
     colorIndex = -1
@@ -135,7 +164,7 @@ def draw_graph(G, indices):
     labels = nx.get_edge_attributes(G,'weight')
     nx.draw_networkx_edge_labels(G,pos,edge_labels=labels)
     plt.axis('off')
-    plt.savefig('my_graph.png')
+    plt.savefig(filename)
 
 
 def get_indices(partitions):
@@ -252,7 +281,7 @@ def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list):
     return prepped_subgroups, cut_sizes, indices
 
 
-def build_operation_graph(operation_list):
+def build_operation_graph(operation_list, qubit_placement_dict):
     
     operation_dict = {}
 
@@ -358,6 +387,33 @@ def build_operation_graph(operation_list):
                             
                             print("Previous_node_id: ", previous_node_id)
                             if is_2q_gate:
+                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                else:
+                                    if previous_node_id in start_nodes:
+                                        # add latency of start node operation
+                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
+                                            else:
+                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
+                                        else: # 1q gate
+                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
+                                    else:
+                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
+                            else:
+                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+                            if is_2q_gate:
                                 if weak_link:
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
@@ -403,11 +459,11 @@ def build_operation_graph(operation_list):
                             
                             print("Previous_node_id: ", previous_node_id)
                             if is_2q_gate:
-                                if weak_link:
+                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=400)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
@@ -419,7 +475,7 @@ def build_operation_graph(operation_list):
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=200)
@@ -447,11 +503,11 @@ def build_operation_graph(operation_list):
                             
                             print("Previous_node_id: ", previous_node_id)
                             if is_2q_gate:
-                                if weak_link:
+                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=400)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
@@ -463,7 +519,7 @@ def build_operation_graph(operation_list):
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=200)
@@ -494,11 +550,11 @@ def build_operation_graph(operation_list):
                             
                             print("Previous_node_id: ", previous_node_id)
                             if is_2q_gate:
-                                if weak_link:
+                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=400)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
@@ -510,7 +566,7 @@ def build_operation_graph(operation_list):
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=200)
@@ -538,11 +594,11 @@ def build_operation_graph(operation_list):
                             
                             print("Previous_node_id: ", previous_node_id)
                             if is_2q_gate:
-                                if weak_link:
+                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=400)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
@@ -554,7 +610,7 @@ def build_operation_graph(operation_list):
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=200)
@@ -588,11 +644,11 @@ def build_operation_graph(operation_list):
                             
                             print("Previous_node_id: ", previous_node_id)
                             if is_2q_gate:
-                                if weak_link:
+                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=400)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
@@ -604,7 +660,7 @@ def build_operation_graph(operation_list):
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=200)
@@ -634,11 +690,11 @@ def build_operation_graph(operation_list):
                             
                             print("Previous_node_id: ", previous_node_id)
                             if is_2q_gate:
-                                if weak_link:
+                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=400)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
@@ -650,7 +706,7 @@ def build_operation_graph(operation_list):
                                     if previous_node_id in start_nodes:
                                         # add latency of start node operation
                                         if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
+                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=300)
                                             else:
                                                 DG.add_edge(previous_node_id, current_node_id, weight=200)
@@ -684,53 +740,62 @@ def main():
     if (sys.argv[1] == 'random'):# generate random circuit
         print("GENERATING RANDOM CIRCUIT")
         chain_size, num_qubits, num_2q_gates, num_1q_gates, qubit_list, delta, gamma, alpha = gen_random_circuit()
+
+        G = nx.Graph()
+        #G = pickle.load(open('./saved_graphs/graph.pkl'))
+        
+        # initialize qubits (add nodes)
+        for qubit_num in qubit_list:
+            G.add_node('q{}'.format(qubit_num))
+        
+        print("Nodes: ", G.nodes())
+        
+        # place gates (add edges)
+        G, operation_list = place_gates(num_1q_gates, num_2q_gates, qubit_list, G)
+        
+        print("Edges: ", G.edges())
+
+        #Place qubits into chains
+        # number of sequences is equal to number of chains
+        # break qubit list into X random groups where X is equal to number of chains
+        prepped_subgroups, cut_sizes, indices = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list)
+
+        qubit_placement_dict = {}
+        
+        for index, subgroup in enumerate(prepped_subgroups):
+            for qubit in subgroup:
+                qubit_placement_dict[qubit] = index
+
+        # draw graph for visualization purposes
+        draw_graph(G, indices, "qubit_graph.png")
+
+        pickle.dump(G, open('./saved_graphs/graph.pkl', 'wb'))
+
+        random.shuffle(operation_list) # randomize order of operations
+        print("Operation list: ", operation_list)
+
     else: # load circuit from config
-        d, num_1q_gates, num_2q_gates, alpha, delta, gamma = load_config("./configs/3layer_test.json")
+        num_1q_gates, num_2q_gates, alpha, delta, gamma, qubits_per_chain, num_qubits, num_chains, qubit_placement_dict, cut_sizes, indices, operation_list = load_config(sys.argv[1])
     
-    G = nx.Graph()
-    #G = pickle.load(open('./saved_graphs/graph.pkl'))
-    
-    # initialize qubits (add nodes)
-    for qubit_num in qubit_list:
-        G.add_node('q{}'.format(qubit_num))
-    
-    print("Nodes: ", G.nodes())
-    
-    # place gates (add edges)
-    G, operation_list = place_gates(num_1q_gates, num_2q_gates, qubit_list, G)
-    
-    print("Edges: ", G.edges())
-
-    #Place qubits into chains
-    # number of sequences is equal to number of chains
-    # break qubit list into X random groups where X is equal to number of chains
-    prepped_subgroups, cut_sizes, indices = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list)
-
-    # draw graph for visualization purposes
-    draw_graph(G, indices)
-
-    pickle.dump(G, open('./saved_graphs/graph.pkl', 'wb'))
-
     print("RESULTS")
-    print("Subgroups: ")
-    print(prepped_subgroups)
+    print("Qubit placement: ", qubit_placement_dict)
     print("Cut sizes: ", cut_sizes)
+    print("Indices: ", indices)
     
     serial_t = delta*num_1q_gates # 1 qubit-gate latencies
     serial_t = serial_t + (num_2q_gates-sum(cut_sizes))*gamma + sum(cut_sizes)*gamma*alpha # 2-qubit gate latencies
     
     print("Serial performance [us]: ", serial_t)
 
-    random.shuffle(operation_list) # randomize order of operations
-    print("Operation list: ", operation_list)
     
-    DG = build_operation_graph(operation_list)
+    DG = build_operation_graph(operation_list, qubit_placement_dict)
     subax1 = plt.subplot(111)
-    nx.draw(DG, with_labels=True, font_weight='bold')
+    nx.draw(DG, nx.circular_layout(DG), with_labels=True, font_weight='bold')
     parallel_t = nx.dag_longest_path_length(DG)
     print("Longest path: ", nx.dag_longest_path(DG))
     print("Parallel performance [us]: ", parallel_t)
-    plt.show()  
+    #plt.show()  
+    plt.savefig("operation_graph.png")
 
 
 if __name__ == "__main__":
