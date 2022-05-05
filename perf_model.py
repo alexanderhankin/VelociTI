@@ -180,9 +180,11 @@ def get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, 
     return prepped_subgroups, cut_sizes, indices
 
 
-def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list):
+def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid):
 
     num_chains = math.ceil(float(num_qubits)/float(chain_size)) #BUG if num_qubits <= chain_size. Evaluates to 1 (we don't want that in the denominator later)
+    
+    attempts = 0
     
     logging.info("Num chains: %d", num_chains)
     
@@ -192,12 +194,17 @@ def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list):
     prepped_subgroups, cut_sizes, indices = get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, G)
     logging.info("Cut sizes: %s", cut_sizes)
     
-    while not all(i <= 2 for i in cut_sizes):
+    while (not all(i <= 2 for i in cut_sizes)) and attempts < 100:
         logging.info("PLACEMENT ATTEMPT")
         prepped_subgroups, cut_sizes, indices = get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, G)
         logging.info("Cut sizes: %s", cut_sizes)
+        attempts = attempts + 1
 
-    return prepped_subgroups, cut_sizes, indices
+    if attempts == 100:
+        valid = False
+        print("Valid: ", valid)
+    
+    return prepped_subgroups, cut_sizes, indices, valid
 
 
 def update_edge_weight(DG, is_2q_gate, qubit_placement_dict, q1, q2, previous_operation, previous_node_id, current_node_id, start_nodes):
@@ -462,7 +469,9 @@ def build_operation_graph(operation_list, qubit_placement_dict):
 
 
 def generate_serial_architecture(qubit_list, num_1q_gates, num_2q_gates, num_qubits, chain_size):
-
+    
+    valid = True
+    
     G = nx.Graph()
     #G = pickle.load(open('./saved_graphs/graph.pkl'))
     
@@ -480,7 +489,40 @@ def generate_serial_architecture(qubit_list, num_1q_gates, num_2q_gates, num_qub
     #Place qubits into chains
     # number of sequences is equal to number of chains
     # break qubit list into X random groups where X is equal to number of chains
-    prepped_subgroups, cut_sizes, indices = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list)
+    prepped_subgroups, cut_sizes, indices, valid = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid)
+    print("Valid: ", valid)
+
+    while not valid:
+
+        print("Valid: ", valid)
+        
+        print("Trying new random circuit...")
+        chain_size, num_qubits, num_2q_gates, num_1q_gates, qubit_list, delta, gamma, alpha = circuit.gen_random_circuit()
+    
+        valid = True
+
+        G = nx.Graph()
+        #G = pickle.load(open('./saved_graphs/graph.pkl'))
+        
+        # initialize qubits (add nodes)
+        for qubit_num in qubit_list:
+            G.add_node('q{}'.format(qubit_num))
+        
+        logging.info("Nodes: %s", G.nodes())
+        
+        # place gates (add edges)
+        G, operation_list = place_gates(num_1q_gates, num_2q_gates, qubit_list, G)
+        
+        logging.info("Edges: %s", G.edges())
+
+        #Place qubits into chains
+        # number of sequences is equal to number of chains
+        # break qubit list into X random groups where X is equal to number of chains
+        prepped_subgroups, cut_sizes, indices, valid = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid)
+        print("Valid: ", valid)
+        
+        logging.info("Trying new random circuit...")
+
 
     qubit_placement_dict = {}
     
