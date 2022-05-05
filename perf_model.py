@@ -200,6 +200,40 @@ def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list):
     return prepped_subgroups, cut_sizes, indices
 
 
+def update_edge_weight(DG, is_2q_gate, qubit_placement_dict, q1, q2, previous_operation, previous_node_id, current_node_id, start_nodes):
+
+    if is_2q_gate:
+        if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
+            if previous_node_id in start_nodes:
+                # add latency of start node operation
+                if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                    if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
+                        DG.add_edge(previous_node_id, current_node_id, weight=400)
+                    else:
+                        DG.add_edge(previous_node_id, current_node_id, weight=300)
+                else: # 1q gate
+                    DG.add_edge(previous_node_id, current_node_id, weight=201)
+            else:
+                DG.add_edge(previous_node_id, current_node_id, weight=200)
+        else:
+            if previous_node_id in start_nodes:
+                # add latency of start node operation
+                if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
+                    if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
+                        DG.add_edge(previous_node_id, current_node_id, weight=300)
+                    else:
+                        DG.add_edge(previous_node_id, current_node_id, weight=200)
+                else: # 1q gate
+                    DG.add_edge(previous_node_id, current_node_id, weight=101)
+            else:
+                DG.add_edge(previous_node_id, current_node_id, weight=100)
+    else:
+        DG.add_edge(previous_node_id, current_node_id, weight=1)
+
+    return DG
+
+
+
 def build_operation_graph(operation_list, qubit_placement_dict):
     
     operation_dict = {}
@@ -300,64 +334,8 @@ def build_operation_graph(operation_list, qubit_placement_dict):
                             else:
                                 previous_node_id = "{}{}".format(previous_operation[0], previous_operation[1])
                             
-                            ## add edge
-                            weak_link = False # TODO: check for weak link
-                            
                             logging.info("Previous_node_id: %s", previous_node_id)
-                            if is_2q_gate:
-                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                else:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
-                            else:
-                                DG.add_edge(previous_node_id, current_node_id, weight=1)
-                            if is_2q_gate:
-                                if weak_link:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                else:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if weak_link:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
-                            else:
-                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+                            DG = update_edge_weight(DG, is_2q_gate, qubit_placement_dict, q1, q2, previous_operation, previous_node_id, current_node_id, start_nodes)
 
                     
                     if not first_operand_linked:
@@ -372,37 +350,9 @@ def build_operation_graph(operation_list, qubit_placement_dict):
                             else:
                                 previous_node_id = "{}{}".format(previous_operation[0], previous_operation[1])
                             
-                            ## add edge
-                            weak_link = False # TODO: check for weak link
                             
                             logging.info("Previous_node_id: %s", previous_node_id)
-                            if is_2q_gate:
-                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                else:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
-                            else:
-                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+                            DG = update_edge_weight(DG, is_2q_gate, qubit_placement_dict, q1, q2, previous_operation, previous_node_id, current_node_id, start_nodes)
 
                     if not second_operand_linked:
                         if q2 == previous_operation[0] or q2 == previous_operation[1]:
@@ -416,37 +366,9 @@ def build_operation_graph(operation_list, qubit_placement_dict):
                             else:
                                 previous_node_id = "{}{}".format(previous_operation[0], previous_operation[1])
                             
-                            ## add edge
-                            weak_link = False # TODO: check for weak link
                             
                             logging.info("Previous_node_id: %s", previous_node_id)
-                            if is_2q_gate:
-                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                else:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
-                            else:
-                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+                            DG = update_edge_weight(DG, is_2q_gate, qubit_placement_dict, q1, q2, previous_operation, previous_node_id, current_node_id, start_nodes)
                 
                 # previous operation under scrutiny is 1q gate
                 else: 
@@ -463,37 +385,9 @@ def build_operation_graph(operation_list, qubit_placement_dict):
                             else:
                                 previous_node_id = "{}".format(previous_operation[0])
                 
-                            ## add edge
-                            weak_link = False # TODO: check for weak link
                             
                             logging.info("Previous_node_id: %s", previous_node_id)
-                            if is_2q_gate:
-                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                else:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
-                            else:
-                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+                            DG = update_edge_weight(DG, is_2q_gate, qubit_placement_dict, q1, q2, previous_operation, previous_node_id, current_node_id, start_nodes)
                     
                     if not second_operand_linked:
                         if q2 == previous_operation[0]:
@@ -507,37 +401,9 @@ def build_operation_graph(operation_list, qubit_placement_dict):
                             else:
                                 previous_node_id = "{}".format(previous_operation[0])
                 
-                            ## add edge
-                            weak_link = False # TODO: check for weak link
                             
                             logging.info("Previous_node_id: %s", previous_node_id)
-                            if is_2q_gate:
-                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                else:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
-                            else:
-                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+                            DG = update_edge_weight(DG, is_2q_gate, qubit_placement_dict, q1, q2, previous_operation, previous_node_id, current_node_id, start_nodes)
 
             # current gate is 1q gate
             else: 
@@ -557,37 +423,9 @@ def build_operation_graph(operation_list, qubit_placement_dict):
                             else:
                                 previous_node_id = "{}{}".format(previous_operation[0], previous_operation[1])
                             
-                            ## add edge
-                            weak_link = False # TODO: check for weak link
                             
                             logging.info("Previous_node_id: %s", previous_node_id)
-                            if is_2q_gate:
-                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                else:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
-                            else:
-                                DG.add_edge(previous_node_id, current_node_id, weight=1)
+                            DG = update_edge_weight(DG, is_2q_gate, qubit_placement_dict, q1, q2, previous_operation, previous_node_id, current_node_id, start_nodes)
 
                 # previous operation under scrutiny is 1q gate
                 else: 
@@ -603,39 +441,9 @@ def build_operation_graph(operation_list, qubit_placement_dict):
                             else:
                                 previous_node_id = "{}".format(previous_operation[0])
                             
-                            ## add edge
-                            weak_link = False # TODO: check for weak link
                             
                             logging.info("Previous_node_id: %s", previous_node_id)
-                            if is_2q_gate:
-                                if qubit_placement_dict[q1] != qubit_placement_dict[q2]:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=400)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=201)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                else:
-                                    if previous_node_id in start_nodes:
-                                        # add latency of start node operation
-                                        if len(previous_operation) >= 2 and "q" in str(previous_operation[1]): #2q gate
-                                            if qubit_placement_dict[previous_operation[0]] != qubit_placement_dict[previous_operation[1]]:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=300)
-                                            else:
-                                                DG.add_edge(previous_node_id, current_node_id, weight=200)
-                                        else: # 1q gate
-                                            DG.add_edge(previous_node_id, current_node_id, weight=101)
-                                    else:
-                                        DG.add_edge(previous_node_id, current_node_id, weight=100)
-                            else:
-                                DG.add_edge(previous_node_id, current_node_id, weight=1)
-                                
-
+                            DG = update_edge_weight(DG, is_2q_gate, qubit_placement_dict, q1, q2, previous_operation, previous_node_id, current_node_id, start_nodes)
 
             ## exit loop if all operand(s) have been linked to previous nodes
             if is_2q_gate:
