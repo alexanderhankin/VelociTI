@@ -1,0 +1,29 @@
+{
+"circuit": 
+
+{
+"1-qubit gate latency [ns]": 1000, 
+
+"2-qubit gate latency inside chain [ns]": 100000, 
+
+"penalty for 2-qubit gate between chains": 2,
+
+"qubits per chain": 4,
+
+"num qubits": 7,
+
+"num 1q gates": 0,
+
+"num 2q gates": 6,
+
+"num chains": 2,
+
+"qubit placement dict": 
+{"q0": 0, "q1": 0, "q2": 0, "q3": 0, "q4": 1, "q5": 1, "q6": 1},
+
+"operation list": 
+[["q1", "q0"], ["q2", "q3"], ["q1", "q2"], ["q4", "q5"], ["q3", "q4"], ["q5","q6"]]
+
+}
+
+}
