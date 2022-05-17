@@ -3,6 +3,7 @@ import logging
 import matplotlib.pyplot as plt
 import random
 import sys
+import os
 import json
 import math
 import pickle
@@ -533,7 +534,10 @@ def generate_serial_architecture(qubit_list, num_1q_gates, num_2q_gates, num_qub
     # draw graph for visualization purposes
     draw_graph(G, indices, "qubit_graph.png")
 
-    pickle.dump(G, open('./saved_graphs/graph.pkl', 'wb'))
+    pkl_path = './saved_graphs/'
+    if not os.path.exists(pkl_path):
+        os.mkdir(pkl_path)
+    pickle.dump(G, open(pkl_path + 'graph.pkl', 'wb'))
 
     random.shuffle(operation_list) # randomize order of operations
     logging.info("Operation list: %s", operation_list)

@@ -7,7 +7,7 @@ import pickle
 
 def main():
 
-    logging.basicConfig(filename='perf_model.log', filemode='w', encoding='utf-8', level=logging.INFO)
+    logging.basicConfig(filename='perf_model.log', filemode='w', level=logging.INFO)
  
     if (sys.argv[1] == 'random'):# generate random circuit
         logging.info("GENERATING RANDOM CIRCUIT")
