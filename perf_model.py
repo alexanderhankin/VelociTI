@@ -180,6 +180,11 @@ def get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, 
     return prepped_subgroups, cut_sizes, indices
 
 
+def circuit_is_valid(cut_sizes):
+
+    return all(i <= 2 for i in cut_sizes)
+
+
 def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid):
 
     num_chains = math.ceil(float(num_qubits)/float(chain_size)) #BUG if num_qubits <= chain_size. Evaluates to 1 (we don't want that in the denominator later)
@@ -194,7 +199,7 @@ def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid):
     prepped_subgroups, cut_sizes, indices = get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, G)
     logging.info("Cut sizes: %s", cut_sizes)
     
-    while (not all(i <= 2 for i in cut_sizes)) and attempts < 100:
+    while (not circuit_is_valid(cut_sizes)) and attempts < 100:
         logging.info("PLACEMENT ATTEMPT")
         prepped_subgroups, cut_sizes, indices = get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, G)
         logging.info("Cut sizes: %s", cut_sizes)
