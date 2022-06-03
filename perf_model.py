@@ -8,6 +8,7 @@ import json
 import math
 import pickle
 import circuit
+from itertools import combinations
 
 
 COLORS = ['lightsteelblue', 'red', 'lime', 'yellow', 'orange', 'navajowhite', 'plum', 'cyan', 'brown']
@@ -125,15 +126,26 @@ def prep_subgroups(subgroups):
 def compute_num_weak_links(num_chains, G, prepped_subgroups):
 
     cut_sizes = []
-    first = 1
+    
+    # initialize tally of weak links/cut sizes
     for i in range(num_chains):
-        if first == 1:
-            first = 0
-            continue
-        else:
-            cut_sizes.append(nx.cut_size(G,prepped_subgroups[i-1],prepped_subgroups[i]))
+        cut_sizes.append(0)
+    #first = 1
+    #for i in range(num_chains):
+    #    if first == 1:
+    #        first = 0
+    #        continue
+    #    else:
+    #        cut_sizes.append(nx.cut_size(G,prepped_subgroups[i-1],prepped_subgroups[i]))
+
+    #return cut_sizes
+    for combo in combinations(range(num_chains), 2):
+        cut_size = nx.cut_size(G,prepped_subgroups[combo[0]],prepped_subgroups[combo[1]])
+        cut_sizes[combo[0]] = cut_sizes[combo[0]] + cut_size
+        cut_sizes[combo[1]] = cut_sizes[combo[1]] + cut_size
 
     return cut_sizes
+
 
 
 def get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, G):
@@ -181,9 +193,15 @@ def get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, 
     return prepped_subgroups, cut_sizes, indices
 
 
+def circuit_is_valid(cut_sizes):
+
+    return all(i <= 2 for i in cut_sizes)
+
+
 def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid):
 
     num_chains = math.ceil(float(num_qubits)/float(chain_size)) #BUG if num_qubits <= chain_size. Evaluates to 1 (we don't want that in the denominator later)
+    print("Num chains: ", num_chains)
     
     attempts = 0
     
@@ -195,7 +213,7 @@ def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid):
     prepped_subgroups, cut_sizes, indices = get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, G)
     logging.info("Cut sizes: %s", cut_sizes)
     
-    while (not all(i <= 2 for i in cut_sizes)) and attempts < 100:
+    while (not circuit_is_valid(cut_sizes)) and attempts < 100:
         logging.info("PLACEMENT ATTEMPT")
         prepped_subgroups, cut_sizes, indices = get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, G)
         logging.info("Cut sizes: %s", cut_sizes)
@@ -203,7 +221,6 @@ def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid):
 
     if attempts == 100:
         valid = False
-        print("Valid: ", valid)
     
     return prepped_subgroups, cut_sizes, indices, valid
 
@@ -265,6 +282,7 @@ def build_operation_graph(operation_list, qubit_placement_dict):
         else:
             is_2q_gate = False
             q1 = operation[0]
+            q2 = ""
             current_operation = "{}".format(q1)
 
         logging.info("Current_operation: %s", current_operation)
@@ -491,12 +509,9 @@ def generate_serial_architecture(qubit_list, num_1q_gates, num_2q_gates, num_qub
     # number of sequences is equal to number of chains
     # break qubit list into X random groups where X is equal to number of chains
     prepped_subgroups, cut_sizes, indices, valid = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid)
-    print("Valid: ", valid)
 
     while not valid:
 
-        print("Valid: ", valid)
-        
         print("Trying new random circuit...")
         chain_size, num_qubits, num_2q_gates, num_1q_gates, qubit_list, delta, gamma, alpha = circuit.gen_random_circuit()
     
@@ -520,7 +535,6 @@ def generate_serial_architecture(qubit_list, num_1q_gates, num_2q_gates, num_qub
         # number of sequences is equal to number of chains
         # break qubit list into X random groups where X is equal to number of chains
         prepped_subgroups, cut_sizes, indices, valid = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid)
-        print("Valid: ", valid)
         
         logging.info("Trying new random circuit...")
 
@@ -551,6 +565,7 @@ def compute_serial_t(delta, num_1q_gates, num_2q_gates, cut_sizes, gamma, alpha)
     serial_t = serial_t + (num_2q_gates-sum(cut_sizes))*gamma + sum(cut_sizes)*gamma*alpha # 2-qubit gate latencies
     
     logging.info("Serial performance [us]: %f", serial_t)
+    print("Number of weak links: ", cut_sizes)
     print("Serial performance [us]: ", serial_t)
     return serial_t
 
