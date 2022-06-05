@@ -9,7 +9,7 @@ import math
 import pickle
 import circuit
 from itertools import combinations
-from circuit import place_gates
+from circuit import place_gates, gen_qasm
 
 
 COLORS = ['lightsteelblue', 'red', 'lime', 'yellow', 'orange', 'navajowhite', 'plum', 'cyan', 'brown']
@@ -454,7 +454,7 @@ def generate_serial_architecture(qubit_list, num_1q_gates, num_2q_gates, num_qub
 
     # place gates (add edges)
     G, operation_list = place_gates(num_1q_gates, num_2q_gates, qubit_list)
-    
+
     logging.info("Edges: %s", G.edges())
 
     #Place qubits into chains
@@ -469,17 +469,10 @@ def generate_serial_architecture(qubit_list, num_1q_gates, num_2q_gates, num_qub
     
         valid = True
 
-        G = nx.Graph()
         #G = pickle.load(open('./saved_graphs/graph.pkl'))
-        
-        # initialize qubits (add nodes)
-        for qubit_num in qubit_list:
-            G.add_node('q{}'.format(qubit_num))
-        
-        logging.info("Nodes: %s", G.nodes())
-        
+
         # place gates (add edges)
-        G, operation_list = place_gates(num_1q_gates, num_2q_gates, qubit_list, G)
+        G, operation_list = place_gates(num_1q_gates, num_2q_gates, qubit_list)
         
         logging.info("Edges: %s", G.edges())
 
@@ -508,6 +501,7 @@ def generate_serial_architecture(qubit_list, num_1q_gates, num_2q_gates, num_qub
     random.shuffle(operation_list) # randomize order of operations
     logging.info("Operation list: %s", operation_list)
 
+    gen_qasm(qubit_list, operation_list)
     return cut_sizes, indices, qubit_placement_dict, operation_list
 
 
