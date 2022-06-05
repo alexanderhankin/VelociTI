@@ -9,7 +9,7 @@ import pickle
 def main():
 
     check_args()
-    printArgs()
+    if getVerbose(): printArgs()
     logging.basicConfig(filename='perf_model.log', filemode='w', level=logging.INFO)
 
     qubit_placement_dict = {}
@@ -35,8 +35,8 @@ def main():
                                                                                                                          num_qubits_max=getNumQubits(),
                                                                                                                          latency_1q=getq1latency(),
                                                                                                                          latency_2q=getq2latency(),
-                                                                                                                         num1qGates=getnum1qGates(),
-                                                                                                                         num2qGates=getnum2qGates(),
+                                                                                                                         num_1q_gates=getnum1qGates(),
+                                                                                                                         num_2q_gates=getnum2qGates(),
                                                                                                                          weaklink_scale_factor=getWeakLinkPen(),
                                                                                                                          verbose=getVerbose(),
                                                                                                                          )
