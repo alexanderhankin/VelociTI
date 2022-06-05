@@ -1,3 +1,4 @@
+import networkx as nx
 import logging
 import json
 import random
@@ -88,3 +89,51 @@ def gen_random_circuit(chain_size=4,
         print("Num 1-qubit gates: ", num_1q_gates)
 
     return chain_size, num_qubits, num_2q_gates, num_1q_gates, qubit_list, delta, gamma, alpha
+
+
+def place_gates(num_1q_gates, num_2q_gates, qubit_list):
+    G = nx.Graph()
+
+    # initialize qubits (add nodes)
+    for qubit_num in qubit_list:
+        G.add_node('q{}'.format(qubit_num))
+    logging.info("Nodes: %s", G.nodes())
+
+    remaining_2q_gates = num_2q_gates - len(qubit_list)  # first randomly assign a 2q gate to each qubit
+
+    operation_list = []
+
+    for qubit in range(len(qubit_list)):
+        q_id = random.sample(range(0, max(qubit_list)), 1)  # sample a distinct qubit
+        q_id = q_id[0]
+
+        while q_id == qubit:
+            q_id = random.sample(range(0, max(qubit_list)), 1)  # sample a distinct qubit
+            q_id = q_id[0]
+        if (G.has_edge('q{}'.format(qubit), 'q{}'.format(q_id))):  # edge already exists; update edge weight
+            G['q{}'.format(qubit)]['q{}'.format(q_id)]['weight'] = G['q{}'.format(qubit)]['q{}'.format(q_id)][
+                                                                       'weight'] + 1
+        else:  # no edge; add edge
+            G.add_edge('q{}'.format(qubit), 'q{}'.format(q_id), weight=1)
+
+        operation_list.append(['q{}'.format(qubit), 'q{}'.format(q_id)])
+
+    for two_q_gate in range(remaining_2q_gates):  # randomly assign the remaining qubits
+        q_id = random.sample(range(0, max(qubit_list)), 2)  # sample 2 distinct qubits
+        q1_id = q_id[0]
+        q2_id = q_id[1]
+
+        if (G.has_edge('q{}'.format(q1_id), 'q{}'.format(q2_id))):  # edge already exists; update edge weight
+            G['q{}'.format(q1_id)]['q{}'.format(q2_id)]['weight'] = G['q{}'.format(q1_id)]['q{}'.format(q2_id)][
+                                                                        'weight'] + 1
+        else:  # no edge; add edge
+            G.add_edge('q{}'.format(q1_id), 'q{}'.format(q2_id), weight=1)
+
+        operation_list.append(['q{}'.format(q1_id), 'q{}'.format(q2_id)])
+
+    for one_q_gate in range(num_1q_gates):
+        q_id = random.sample(range(0, max(qubit_list)), 1)  # sample a distinct qubit
+        q_id = q_id[0]
+        operation_list.append(['q{}'.format(q_id)])
+
+    return G, operation_list
