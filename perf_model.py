@@ -1,3 +1,4 @@
+import graphviz
 import networkx as nx
 import logging
 import matplotlib.pyplot as plt
@@ -34,14 +35,19 @@ def sum_to_n(n, size, limit=None):
 def draw_graph(G, indices, filename):
 
     color_map = []
+    chain_id_list = []
     colorIndex = -1
     index = 0
+    chain_id = 0
     indices.insert(0, 0)
     indices.append(G.number_of_nodes())
-    for i in range(len(indices) - 1):
+    total_chains = len(indices) - 1
+    for i in range(total_chains):
         count = indices[i+1] - indices[i]
         for j in range(count):
             color_map.append(COLORS[i])
+            chain_id_list.append(chain_id)
+        chain_id += 1
 
     # pos=nx.random_layout(G)
     pos=nx.circular_layout(G)
@@ -50,6 +56,48 @@ def draw_graph(G, indices, filename):
     nx.draw_networkx_edge_labels(G,pos,edge_labels=labels)
     plt.axis('off')
     plt.savefig(filename)
+
+    # vizualize chains
+    print("G is", G.nodes)
+    print(indices)
+    print("num chains", total_chains)
+
+
+
+
+    g = graphviz.Graph(name="Testing", filename="chains", comment="comment")
+
+    # within chains
+    for chain in range(total_chains):
+        start = indices[chain]
+        end = indices[chain + 1]
+#
+        # draw each chain
+        cluster_name='cluster_' + str(chain + 1)
+        chain_name='chain_' + str(chain + 1)
+        with g.subgraph(name=cluster_name) as c:
+            c.attr(label=chain_name)
+            for i in range(start, end - 1):
+                qx = "q" + str(i)
+                qy = "q" + str(i+1)
+                c.node_attr.update(style='filled', color=color_map[i])
+                c.edge(qx,qy)
+
+    # weak links
+    if total_chains >= 2:
+        for i in range(total_chains - 1):
+            qx = "q" + str(indices[i])
+            qy = "q" + str(indices[i + 1])
+            g.edge(qx, qy)
+            print(qx, qy)
+
+            qx = "q" + str(indices[i + 1] - 1)
+            qy = "q" + str(indices[i + 2] - 1)
+            g.edge(qx, qy)
+            print(qx, qy)
+
+    g.view()
+
 
 
 def get_indices(partitions):

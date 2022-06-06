@@ -172,4 +172,3 @@ def gen_qasm(qubit_list, operation_list, verbose=False):
 
             f.write(str_row)
     return
-
