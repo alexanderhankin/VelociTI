@@ -27,6 +27,114 @@ def sum_to_n(n, size, limit=None):
         for tail in sum_to_n(n - i, size - 1, i):
             yield [i] + tail
 
+def place_gates2(num_1q_gates, num_2q_gates, qubit_list, prepped_subgroups, indices, num_chains, G):
+
+    remaining_2q_gates = num_2q_gates - len(qubit_list) # first randomly assign a 2q gate to each qubit
+    print(qubit_list)
+    print(prepped_subgroups)
+    print(indices)
+    num_weak_links = 0
+
+    same_chain = False
+    operation_list = []
+
+    for qubit in range(len(qubit_list)):
+        #print("Num_weak_links = ", num_weak_links)
+        q_id = random.sample(range(0, max(qubit_list)), 1)  # sample a distinct qubit
+        q_id = q_id[0]
+        
+        while q_id == qubit:
+            q_id = random.sample(range(0, max(qubit_list)), 1)  # sample a distinct qubit
+            q_id = q_id[0]
+
+        if num_weak_links < num_chains: # check to see if there are weak links available
+            if (G.has_edge('q{}'.format(qubit), 'q{}'.format(q_id))): # edge already exists; update edge weight
+                G['q{}'.format(qubit)]['q{}'.format(q_id)]['weight'] = G['q{}'.format(qubit)]['q{}'.format(q_id)]['weight'] + 1
+            else: #no edge; add edge
+                G.add_edge('q{}'.format(qubit), 'q{}'.format(q_id), weight=1)
+             
+            for subgroup in prepped_subgroups:
+                #print(subgroup)
+                #print("HERE")
+                #print('q{}'.format(qubit))
+                #print('q{}'.format(q_id))
+                #print("HERE")
+                #print('q{}'.format(qubit) in subgroup)
+                #print('q{}'.format(q_id) in subgroup)
+                if 'q{}'.format(qubit) in subgroup and 'q{}'.format(q_id) in subgroup:
+                    num_weak_links = num_weak_links + 1 
+            operation_list.append(['q{}'.format(qubit), 'q{}'.format(q_id)])
+        else: # no weak links available, make sure the 2 qubits are in the same chain
+            q_id = random.sample(range(0, max(qubit_list)), 1)  # sample a distinct qubit
+            q_id = q_id[0]
+
+            for subgroup in prepped_subgroups:
+                if 'q{}'.format(qubit) in subgroup and 'q{}'.format(q_id) in subgroup:
+                    same_chain = True
+            
+            while q_id == qubit or not same_chain:
+                q_id = random.sample(range(0, max(qubit_list)), 1)  # sample a distinct qubit
+                q_id = q_id[0]
+                same_chain = False
+                for subgroup in prepped_subgroups:
+                    if 'q{}'.format(qubit) in subgroup and 'q{}'.format(q_id) in subgroup:
+                        same_chain = True
+            # Distinct qubits and in the same chain
+            if (G.has_edge('q{}'.format(qubit), 'q{}'.format(q_id))): # edge already exists; update edge weight
+                G['q{}'.format(qubit)]['q{}'.format(q_id)]['weight'] = G['q{}'.format(qubit)]['q{}'.format(q_id)]['weight'] + 1
+            else: #no edge; add edge
+                G.add_edge('q{}'.format(qubit), 'q{}'.format(q_id), weight=1)
+             
+            operation_list.append(['q{}'.format(qubit), 'q{}'.format(q_id)])
+        same_chain = False
+        
+
+    for two_q_gate in range(remaining_2q_gates): # randomly assign the remaining qubits
+        q_id = random.sample(range(0, max(qubit_list)), 2)  # sample 2 distinct qubits
+        q1_id = q_id[0]
+        q2_id = q_id[1]
+
+        if num_weak_links < num_chains: # check to see if there are weak links available
+            if (G.has_edge('q{}'.format(q1_id), 'q{}'.format(q2_id))): # edge already exists; update edge weight
+                G['q{}'.format(q1_id)]['q{}'.format(q2_id)]['weight'] = G['q{}'.format(q1_id)]['q{}'.format(q2_id)]['weight'] + 1
+            else: #no edge; add edge
+                G.add_edge('q{}'.format(q1_id), 'q{}'.format(q2_id), weight=1)
+            
+            for subgroup in prepped_subgroups:
+                if 'q{}'.format(q1_id) in subgroup and 'q{}'.format(q2_id) in subgroup:
+                    num_weak_links = num_weak_links + 1 
+            
+            operation_list.append(['q{}'.format(q1_id), 'q{}'.format(q2_id)]) 
+            
+        else:
+            for subgroup in prepped_subgroups:
+                if 'q{}'.format(q1_id) in subgroup and 'q{}'.format(q2_id) in subgroup:
+                    same_chain = True
+
+            while not same_chain:
+                q_id = random.sample(range(0, max(qubit_list)), 2)  # sample 2 distinct qubits
+                q1_id = q_id[0]
+                q2_id = q_id[1]
+                same_chain = False
+                for subgroup in prepped_subgroups:
+                    if 'q{}'.format(q1_id) in subgroup and 'q{}'.format(q2_id) in subgroup:
+                        same_chain = True
+
+            if (G.has_edge('q{}'.format(q1_id), 'q{}'.format(q2_id))): # edge already exists; update edge weight
+                G['q{}'.format(q1_id)]['q{}'.format(q2_id)]['weight'] = G['q{}'.format(q1_id)]['q{}'.format(q2_id)]['weight'] + 1
+            else: #no edge; add edge
+                G.add_edge('q{}'.format(q1_id), 'q{}'.format(q2_id), weight=1)
+            
+            operation_list.append(['q{}'.format(q1_id), 'q{}'.format(q2_id)]) 
+
+    for one_q_gate in range(num_1q_gates):
+        q_id = random.sample(range(0, max(qubit_list)), 1)  # sample a distinct qubit
+        q_id = q_id[0]
+        operation_list.append(['q{}'.format(q_id)])
+       
+
+    return num_weak_links, G, operation_list
+
 
 def place_gates(num_1q_gates, num_2q_gates, qubit_list, G):
 
@@ -146,6 +254,51 @@ def compute_num_weak_links(num_chains, G, prepped_subgroups):
     return cut_sizes
 
 
+def get_placement_possibilities2(chain_size, qubit_list, num_chains, num_qubits, G):
+    
+    # get all ways to break up the graph into subgraphs 
+    partition_list = list(sum_to_n(len(qubit_list)-1, num_chains))
+    
+    logging.info("Partitions: %s", partition_list)
+    
+    # choose one of those ways randomly
+    idx = random.randint(0, len(partition_list)-1)
+
+    while any(partition > chain_size for partition in partition_list[idx]):
+        # choose one of those ways randomly
+        idx = random.randint(0, len(partition_list)-1)
+    
+    # get the indices (no duplicates)
+    indices = get_indices(partition_list[idx])
+    
+    subgroups = []
+    
+    if len(indices) != 0:
+        first = 1
+        for ind in indices:
+           if first == 1: 
+               subgroups.append(list(range(0, ind))) 
+               old_ind = ind
+               first = 0
+           else:
+               subgroups.append(list(range(old_ind, ind)))
+               old_ind = ind
+        
+        subgroups.append(list(range(indices[len(indices)-1], num_qubits)))
+    else:
+        subgroups.append(list(range(0, num_qubits)))
+    
+    # prep subgroups (e.g., append q to qubit id's)
+    prepped_subgroups = prep_subgroups(subgroups)
+    
+    logging.info("Subgroups: %s", prepped_subgroups)
+       
+    # compute number of weak links (cut sizes between chains)
+    #cut_sizes = compute_num_weak_links(num_chains, G, prepped_subgroups)
+
+    #return prepped_subgroups, cut_sizes, indices
+    return prepped_subgroups, indices
+
 
 def get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, G):
     
@@ -194,6 +347,8 @@ def get_placement_possibilities(chain_size, qubit_list, num_chains, num_qubits, 
 
 def circuit_is_valid(cut_sizes):
 
+    ## compute number of weak links (cut sizes between chains)
+    #cut_sizes = compute_num_weak_links(num_chains, G, prepped_subgroups)
     return all(i <= 2 for i in cut_sizes)
 
 
@@ -222,6 +377,22 @@ def place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid):
         valid = False
     
     return prepped_subgroups, cut_sizes, indices, valid
+
+def place_qubits_into_chains2(G, num_qubits, chain_size, qubit_list):
+
+    num_chains = math.ceil(float(num_qubits)/float(chain_size)) #BUG if num_qubits <= chain_size. Evaluates to 1 (we don't want that in the denominator later)
+    print("Num chains: ", num_chains)
+    
+    attempts = 0
+    
+    logging.info("Num chains: %d", num_chains)
+    
+    random.shuffle(qubit_list)
+    
+    logging.info("PLACEMENT ATTEMPT")
+    prepped_subgroups, indices = get_placement_possibilities2(chain_size, qubit_list, num_chains, num_qubits, G)
+    
+    return num_chains, prepped_subgroups, indices
 
 
 def update_edge_weight(DG, is_2q_gate, qubit_placement_dict, q1, q2, previous_operation, previous_node_id, current_node_id, start_nodes):
@@ -554,6 +725,106 @@ def generate_serial_architecture(qubit_list, num_1q_gates, num_2q_gates, num_qub
 
     return cut_sizes, indices, qubit_placement_dict, operation_list
 
+def generate_serial_architecture2(qubit_list, num_1q_gates, num_2q_gates, num_qubits, chain_size):
+    
+    valid = True
+    
+    G = nx.Graph()
+    #G = pickle.load(open('./saved_graphs/graph.pkl'))
+    
+    # initialize qubits (add nodes)
+    for qubit_num in qubit_list:
+        G.add_node('q{}'.format(qubit_num))
+    
+    logging.info("Nodes: %s", G.nodes())
+    
+    # place gates (add edges)
+    G, operation_list = place_gates(num_1q_gates, num_2q_gates, qubit_list, G)
+    
+    logging.info("Edges: %s", G.edges())
+
+    #Place qubits into chains
+    # number of sequences is equal to number of chains
+    # break qubit list into X random groups where X is equal to number of chains
+    prepped_subgroups, cut_sizes, indices, valid = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid)
+
+    while not valid:
+
+        valid = True
+
+        G = nx.Graph()
+        #G = pickle.load(open('./saved_graphs/graph.pkl'))
+        
+        # initialize qubits (add nodes)
+        for qubit_num in qubit_list:
+            G.add_node('q{}'.format(qubit_num))
+        
+        logging.info("Nodes: %s", G.nodes())
+        
+        # place gates (add edges)
+        G, operation_list = place_gates(num_1q_gates, num_2q_gates, qubit_list, G)
+        
+        logging.info("Edges: %s", G.edges())
+
+        #Place qubits into chains
+        # number of sequences is equal to number of chains
+        # break qubit list into X random groups where X is equal to number of chains
+        prepped_subgroups, cut_sizes, indices, valid = place_qubits_into_chains(G, num_qubits, chain_size, qubit_list, valid)
+        
+        logging.info("Trying new random circuit...")
+
+    qubit_placement_dict = {}
+    
+    for index, subgroup in enumerate(prepped_subgroups):
+        for qubit in subgroup:
+            qubit_placement_dict[qubit] = index
+
+    # draw graph for visualization purposes
+    draw_graph(G, indices, "qubit_graph.png")
+
+    pickle.dump(G, open('./saved_graphs/graph.pkl', 'wb'))
+
+    random.shuffle(operation_list) # randomize order of operations
+    logging.info("Operation list: %s", operation_list)
+
+    return cut_sizes, indices, qubit_placement_dict, operation_list
+
+def generate_serial_architecture3(qubit_list, num_1q_gates, num_2q_gates, num_qubits, chain_size):
+    
+    G = nx.Graph()
+    #G = pickle.load(open('./saved_graphs/graph.pkl'))
+    
+    # initialize qubits (add nodes)
+    for qubit_num in qubit_list:
+        G.add_node('q{}'.format(qubit_num))
+    
+    logging.info("Nodes: %s", G.nodes())
+    
+    #Place qubits into chains
+    # number of sequences is equal to number of chains
+    # break qubit list into X random groups where X is equal to number of chains
+    num_chains, prepped_subgroups, indices = place_qubits_into_chains2(G, num_qubits, chain_size, qubit_list)
+    
+    # place gates (add edges)
+    num_weak_links, G, operation_list = place_gates2(num_1q_gates, num_2q_gates, qubit_list, prepped_subgroups, indices, num_chains, G)
+    
+    logging.info("Edges: %s", G.edges())
+
+    qubit_placement_dict = {}
+    
+    for index, subgroup in enumerate(prepped_subgroups):
+        for qubit in subgroup:
+            qubit_placement_dict[qubit] = index
+
+    # draw graph for visualization purposes
+    draw_graph(G, indices, "qubit_graph.png")
+
+    pickle.dump(G, open('./saved_graphs/graph.pkl', 'wb'))
+
+    random.shuffle(operation_list) # randomize order of operations
+    logging.info("Operation list: %s", operation_list)
+
+    return num_weak_links, indices, qubit_placement_dict, operation_list
 
 def compute_serial_t(delta, num_1q_gates, num_2q_gates, cut_sizes, gamma, alpha):
 
@@ -565,6 +836,15 @@ def compute_serial_t(delta, num_1q_gates, num_2q_gates, cut_sizes, gamma, alpha)
     print("Serial performance [us]: ", serial_t)
     return serial_t
 
+def compute_serial_t2(delta, num_1q_gates, num_2q_gates, num_weak_links, gamma, alpha):
+
+    serial_t = delta*num_1q_gates # 1 qubit-gate latencies
+    serial_t = serial_t + (num_2q_gates-num_weak_links)*gamma + num_weak_links*gamma*alpha # 2-qubit gate latencies
+    
+    logging.info("Serial performance [us]: %f", serial_t)
+    print("Number of weak links: ", num_weak_links)
+    print("Serial performance [us]: ", serial_t)
+    return serial_t
 
 def generate_parallel_architecture(operation_list, qubit_placement_dict):
 

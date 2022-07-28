@@ -63,19 +63,168 @@ def load_config(config_file_path):
 
 def gen_random_circuit():
     
-    chain_size = 4
+    chain_size = 16
     logging.info("Chain size: %s", chain_size)
-    num_qubits = random.randint(3, 16)
+    num_qubits = random.randint(4, 48)
     logging.info("Num qubits: %d", num_qubits)
-    num_2q_gates = random.randint(num_qubits, num_qubits + 15)
+    num_2q_gates = random.randint(num_qubits, num_qubits + 4)
     logging.info("Num 2-qubit gates: %d", num_2q_gates)
-    num_1q_gates = random.randint(0, num_qubits + 10)
+    num_1q_gates = random.randint(0, num_qubits + 60)
     logging.info("Num 1-qubit gates: %d", num_1q_gates)
     qubit_list = list(range(num_qubits))
     logging.info("Qubit list: %s", qubit_list)
     delta = 1
     gamma = 100
     alpha = 2
+
+    print("Chain size: ", chain_size)
+    print("Num qubits: ", num_qubits)
+    print("Num 2-qubit gates: ", num_2q_gates)
+    print("Num 1-qubit gates: ", num_1q_gates)
+
+    return chain_size, num_qubits, num_2q_gates, num_1q_gates, qubit_list, delta, gamma, alpha
+
+
+
+def gen_supremacy():
+
+    chain_size = 16 
+    logging.info("Chain size: %s", chain_size)
+    num_qubits = 64
+    logging.info("Num qubits: %d", num_qubits)
+    num_2q_gates = 560
+    logging.info("Num 2-qubit gates: %d", num_2q_gates)
+    num_1q_gates = 0
+    logging.info("Num 1-qubit gates: %d", num_1q_gates)
+    qubit_list = list(range(num_qubits))
+    logging.info("Qubit list: %s", qubit_list)
+    delta = 1
+    gamma = 100
+    alpha = 2
+
+    print("Chain size: ", chain_size)
+    print("Num qubits: ", num_qubits)
+    print("Num 2-qubit gates: ", num_2q_gates)
+    print("Num 1-qubit gates: ", num_1q_gates)
+
+    return chain_size, num_qubits, num_2q_gates, num_1q_gates, qubit_list, delta, gamma, alpha
+
+
+def gen_qaoa():
+
+    chain_size = 16 
+    logging.info("Chain size: %s", chain_size)
+    num_qubits = 64
+    logging.info("Num qubits: %d", num_qubits)
+    num_2q_gates = 1260
+    logging.info("Num 2-qubit gates: %d", num_2q_gates)
+    num_1q_gates = 0
+    logging.info("Num 1-qubit gates: %d", num_1q_gates)
+    qubit_list = list(range(num_qubits))
+    logging.info("Qubit list: %s", qubit_list)
+    delta = 1
+    gamma = 100
+    alpha = 2
+
+    print("Chain size: ", chain_size)
+    print("Num qubits: ", num_qubits)
+    print("Num 2-qubit gates: ", num_2q_gates)
+    print("Num 1-qubit gates: ", num_1q_gates)
+
+    return chain_size, num_qubits, num_2q_gates, num_1q_gates, qubit_list, delta, gamma, alpha
+
+
+def gen_squareroot():
+
+    chain_size = 16 
+    logging.info("Chain size: %s", chain_size)
+    num_qubits = 78
+    logging.info("Num qubits: %d", num_qubits)
+    num_2q_gates = 1028
+    logging.info("Num 2-qubit gates: %d", num_2q_gates)
+    num_1q_gates = 0
+    logging.info("Num 1-qubit gates: %d", num_1q_gates)
+    qubit_list = list(range(num_qubits))
+    logging.info("Qubit list: %s", qubit_list)
+    delta = 1
+    gamma = 100
+    alpha = 2
+
+    print("Chain size: ", chain_size)
+    print("Num qubits: ", num_qubits)
+    print("Num 2-qubit gates: ", num_2q_gates)
+    print("Num 1-qubit gates: ", num_1q_gates)
+
+    return chain_size, num_qubits, num_2q_gates, num_1q_gates, qubit_list, delta, gamma, alpha
+
+
+def gen_qft():
+
+    chain_size = 16 
+    logging.info("Chain size: %s", chain_size)
+    num_qubits = 64
+    logging.info("Num qubits: %d", num_qubits)
+    num_2q_gates = 4032
+    logging.info("Num 2-qubit gates: %d", num_2q_gates)
+    num_1q_gates = 0
+    logging.info("Num 1-qubit gates: %d", num_1q_gates)
+    qubit_list = list(range(num_qubits))
+    logging.info("Qubit list: %s", qubit_list)
+    delta = 1
+    gamma = 100
+    alpha = 2
+
+    print("Chain size: ", chain_size)
+    print("Num qubits: ", num_qubits)
+    print("Num 2-qubit gates: ", num_2q_gates)
+    print("Num 1-qubit gates: ", num_1q_gates)
+
+    return chain_size, num_qubits, num_2q_gates, num_1q_gates, qubit_list, delta, gamma, alpha
+
+
+def gen_adder():
+
+    chain_size = 16 
+    logging.info("Chain size: %s", chain_size)
+    num_qubits = 64
+    logging.info("Num qubits: %d", num_qubits)
+    num_2q_gates = 4032
+    logging.info("Num 2-qubit gates: %d", num_2q_gates)
+    num_1q_gates = 0
+    logging.info("Num 1-qubit gates: %d", num_1q_gates)
+    qubit_list = list(range(num_qubits))
+    logging.info("Qubit list: %s", qubit_list)
+    delta = 1
+    gamma = 100
+    alpha = 2
+    
+    outfile = "adder.out"
+
+    print("Chain size: ", chain_size)
+    print("Num qubits: ", num_qubits)
+    print("Num 2-qubit gates: ", num_2q_gates)
+    print("Num 1-qubit gates: ", num_1q_gates)
+
+    return chain_size, num_qubits, num_2q_gates, num_1q_gates, qubit_list, delta, gamma, alpha
+
+
+def gen_bv():
+
+    chain_size = 16 
+    logging.info("Chain size: %s", chain_size)
+    num_qubits = 64
+    logging.info("Num qubits: %d", num_qubits)
+    num_2q_gates = 64
+    logging.info("Num 2-qubit gates: %d", num_2q_gates)
+    num_1q_gates = 0
+    logging.info("Num 1-qubit gates: %d", num_1q_gates)
+    qubit_list = list(range(num_qubits))
+    logging.info("Qubit list: %s", qubit_list)
+    delta = 1
+    gamma = 100
+    alpha = 2
+
+    outfile = "bv.out"
 
     print("Chain size: ", chain_size)
     print("Num qubits: ", num_qubits)
